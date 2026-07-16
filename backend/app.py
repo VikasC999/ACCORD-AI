@@ -7,14 +7,24 @@ from services.contract_generator import generate_contract
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import fitz  # PyMuPDF
-
+from database import db
 from dotenv import load_dotenv
 import os
 load_dotenv()
-
+from models import User
+from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager, create_access_token
 
 app = Flask(__name__)
 CORS(app)
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///accordai.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db.init_app(app)
+bcrypt = Bcrypt(app)
+app.config["JWT_SECRET_KEY"] = "accordai-secret-key"
+
+jwt = JWTManager(app)
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -69,6 +79,73 @@ def generate():
     return jsonify({
         "contract": contract
     })
+@app.route("/register", methods=["POST"])
+def register():
+    data = request.json
+
+    full_name = data.get("full_name")
+    email = data.get("email")
+    password = data.get("password")
+
+    if not full_name or not email or not password:
+        return jsonify({
+            "message": "All fields are required"
+        }), 400
+
+    existing_user = User.query.filter_by(email=email).first()
+
+    if existing_user:
+        return jsonify({
+            "message": "Email already registered"
+        }), 409
+    hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
+
+    new_user = User(
+    full_name=full_name,
+    email=email,
+    password=hashed_password
+    )
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({
+        "message": "User registered successfully",
+    }),201
+
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.json
+
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
+        return jsonify({
+            "message": "Email and password are required"
+        }), 400
+
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        return jsonify({
+            "message": "Invalid email or password"
+        }), 401
+
+    if not bcrypt.check_password_hash(user.password, password):
+        return jsonify({
+            "message": "Invalid email or password"
+        }), 401
+    access_token = create_access_token(identity=user.id)
+
+    return jsonify({
+    "message": "Login successful",
+    "token": access_token,
+    "user": {
+        "id": user.id,
+        "full_name": user.full_name,
+        "email": user.email
+    }
+}), 200
 
 
 @app.route("/test-ai")
@@ -114,6 +191,8 @@ def rewrite_contract_clause():
     return jsonify({
         "rewritten_clause": rewritten_clause
     })
+with app.app_context():
+    db.create_all()
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
