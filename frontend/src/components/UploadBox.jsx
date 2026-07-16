@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import API_BASE_URL from "../services/api";
+import { useNavigate } from "react-router-dom";
 
 function UploadBox() {
     const fileInputRef = useRef(null);
@@ -8,6 +9,7 @@ function UploadBox() {
     const [loading, setLoading] = useState(false);
     const [analysis, setAnalysis] = useState(null);
     const [contractText, setContractText] = useState("");
+    const [enhancedContract, setEnhancedContract] = useState("");
     const [question, setQuestion] = useState("");
     const [answer, setAnswer] = useState("");
     const [rewrittenClauses, setRewrittenClauses] = useState({});
@@ -38,6 +40,7 @@ function UploadBox() {
 
             const data = await response.json();
             setContractText(data.contract_text);
+            setEnhancedContract(data.contract_text);
 
             setAnalysis(data.summary);
         } catch (error) {
@@ -106,13 +109,20 @@ function UploadBox() {
             setLoadingClause(null);
         }
     };
-    const handleApplyClause = (index) => {
+    const handleApplyClause = (index, originalClause) => {
+
+        const rewrittenClause = rewrittenClauses[index];
+
+        if (!rewrittenClause) return;
+
+        setEnhancedContract((prev) =>
+            prev.replace(originalClause, rewrittenClause)
+        );
 
         setAppliedClauses((prev) => ({
             ...prev,
             [index]: true,
         }));
-
     };
 
     const handleRejectClause = (index) => {
@@ -309,6 +319,7 @@ function UploadBox() {
                                         </span>
                                     </p>
 
+
                                     <p className="mt-2">
                                         <strong>📄 Original Clause:</strong>
                                     </p>
@@ -372,7 +383,9 @@ function UploadBox() {
                                                 {!appliedClauses[index] ? (
                                                     <>
                                                         <button
-                                                            onClick={() => handleApplyClause(index)}
+                                                            onClick={() =>
+                                                                handleApplyClause(index, risk.original_text)
+                                                            }
                                                             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
                                                         >
                                                             ✅ Apply
@@ -459,9 +472,74 @@ function UploadBox() {
                             </div>
                         )}
                     </div>
+                    {/* Enhanced Contract */}
+
+                    <div className="bg-white rounded-xl shadow p-5 border">
+
+                        <h3 className="font-bold text-lg">
+                            📄 Enhanced Contract Preview
+                        </h3>
+
+                        <p className="text-gray-500 mt-2">
+                            This contract is updated as you accept AI suggestions.
+                        </p>
+
+                        <div className="mt-5 bg-gray-100 rounded-lg p-4 max-h-[500px] overflow-y-auto">
+
+                            <pre className="whitespace-pre-wrap leading-7">
+                                {enhancedContract}
+                            </pre>
+
+                        </div>
+                        {enhancedContract !== contractText && (<div className="mt-5 text-center">
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const token = localStorage.getItem("token");
+
+                                        const response = await fetch(`${API_BASE_URL}/download-enhanced-docx`, {
+                                            method: "POST",
+                                            headers: {
+                                                "Content-Type": "application/json",
+                                                "Authorization": `Bearer ${token}`,
+                                            },
+                                            body: JSON.stringify({
+                                                title: `${analysis.contract_type || "Contract"} - Enhanced`,
+                                                content: enhancedContract,
+                                            }),
+                                        });
+
+                                        const blob = await response.blob();
+                                        const url = window.URL.createObjectURL(blob);
+
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `${analysis.contract_type || "Contract"} - Enhanced.docx`;
+
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        a.remove();
+
+                                        window.URL.revokeObjectURL(url);
+
+                                    } catch (error) {
+                                        console.error(error);
+                                        alert("Failed to download enhanced contract.");
+                                    }
+                                }}
+                                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold"
+                            >
+                                ⬇ Download Enhanced DOCX
+                            </button>
+                        </div>)}
+                    </div>
 
                 </div>
             )}
+            <div>
+
+
+            </div>
         </div>
     );
 }

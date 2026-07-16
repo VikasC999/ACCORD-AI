@@ -4,16 +4,23 @@ from services.ai_service import (
     rewrite_clause
 )
 from services.contract_generator import generate_contract
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import fitz  # PyMuPDF
 from database import db
 from dotenv import load_dotenv
 import os
+from utils.docx_generator import create_docx
 load_dotenv()
-from models import User
+from models import User, Contract
 from flask_bcrypt import Bcrypt
-from flask_jwt_extended import JWTManager, create_access_token
+from datetime import timedelta
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    jwt_required,
+    get_jwt_identity,
+)
 
 app = Flask(__name__)
 CORS(app)
@@ -23,6 +30,8 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 bcrypt = Bcrypt(app)
 app.config["JWT_SECRET_KEY"] = "accordai-secret-key"
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=12)
+
 
 jwt = JWTManager(app)
 
@@ -71,14 +80,125 @@ def upload_pdf():
         "contract_text":text
     })
 @app.route("/generate", methods=["POST"])
-def generate():
+@jwt_required()
+def generate_contract_route():
+
     data = request.json
 
+    user_id = get_jwt_identity()
+
     contract = generate_contract(data)
+
+    new_contract = Contract(
+        user_id=int(user_id),
+        contract_type=data.get("contractType", "Unknown"),
+        mode="Generated",
+        title=f"{data.get('contractType', 'Contract')} - {data.get('clientName', 'Untitled')}",
+        content=contract,
+    )
+
+    db.session.add(new_contract)
+    db.session.commit()
 
     return jsonify({
         "contract": contract
     })
+@app.route("/my-contracts", methods=["GET"])
+@jwt_required()
+def get_my_contracts():
+
+    user_id = get_jwt_identity()
+
+    contracts = Contract.query.filter_by(user_id=int(user_id)).order_by(
+        Contract.created_at.desc()
+    ).all()
+
+    contract_list = []
+
+    for contract in contracts:
+        contract_list.append({
+            "id": contract.id,
+            "title": contract.title,
+            "contract_type": contract.contract_type,
+            "mode": contract.mode,
+            "created_at": contract.created_at.strftime("%d %b %Y"),
+        })
+
+    return jsonify(contract_list)
+
+@app.route("/contract/<int:contract_id>", methods=["GET"])
+@jwt_required()
+def get_contract(contract_id):
+
+    user_id = int(get_jwt_identity())
+
+    contract = Contract.query.filter_by(
+        id=contract_id,
+        user_id=user_id
+    ).first()
+
+    if not contract:
+        return jsonify({
+            "message": "Contract not found"
+        }), 404
+
+    return jsonify({
+        "id": contract.id,
+        "title": contract.title,
+        "contract_type": contract.contract_type,
+        "mode": contract.mode,
+        "content": contract.content,
+        "created_at": contract.created_at.strftime("%d %b %Y")
+    })
+
+@app.route("/download-docx/<int:contract_id>", methods=["GET"])
+@jwt_required()
+def download_docx(contract_id):
+
+    user_id = int(get_jwt_identity())
+
+    contract = Contract.query.filter_by(
+        id=contract_id,
+        user_id=user_id
+    ).first()
+
+    if not contract:
+        return jsonify({
+            "message": "Contract not found"
+        }), 404
+
+    output_path = f"generated_contract_{contract.id}.docx"
+
+    create_docx(
+        contract.title,
+        contract.content,
+        output_path
+    )
+
+    return send_file(
+        output_path,
+        as_attachment=True,
+        download_name=f"{contract.title}.docx"
+    )
+@app.route("/download-enhanced-docx", methods=["POST"])
+@jwt_required()
+def download_enhanced_docx():
+
+    data = request.json
+
+    title = data.get("title", "Enhanced Contract")
+    content = data.get("content", "")
+
+    output_path = "enhanced_contract.docx"
+
+    create_docx(title, content, output_path)
+
+    return send_file(
+        output_path,
+        as_attachment=True,
+        download_name=f"{title}.docx"
+    )
+
 @app.route("/register", methods=["POST"])
 def register():
     data = request.json
@@ -135,7 +255,7 @@ def login():
         return jsonify({
             "message": "Invalid email or password"
         }), 401
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
 
     return jsonify({
     "message": "Login successful",
@@ -193,6 +313,12 @@ def rewrite_contract_clause():
     })
 with app.app_context():
     db.create_all()
+
+with app.app_context():
+    contracts = Contract.query.all()
+
+    for contract in contracts:
+        print(contract.id, contract.title)
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
