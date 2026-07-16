@@ -1,4 +1,9 @@
-from services.ai_service import ask_ai
+from services.ai_service import (
+    ask_ai,
+    ask_contract_question,
+    rewrite_clause
+)
+from services.contract_generator import generate_contract
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import fitz  # PyMuPDF
@@ -52,7 +57,17 @@ def upload_pdf():
 
     return jsonify({
         "filename": file.filename,
-        "summary": summary
+        "summary": summary,
+        "contract_text":text
+    })
+@app.route("/generate", methods=["POST"])
+def generate():
+    data = request.json
+
+    contract = generate_contract(data)
+
+    return jsonify({
+        "contract": contract
     })
 
 
@@ -64,7 +79,41 @@ def test_ai():
     return jsonify({
         "response": response
     })
+@app.route("/chat", methods=["POST"])
+def chat_with_contract():
 
+    data = request.get_json()
+
+    contract_text = data.get("contract_text", "")
+    question = data.get("question", "")
+
+    if not contract_text or not question:
+        return jsonify({
+            "error": "Contract text and question are required."
+        }), 400
+
+    answer = ask_contract_question(contract_text, question)
+
+    return jsonify({
+        "answer": answer
+    })
+@app.route("/rewrite-clause", methods=["POST"])
+def rewrite_contract_clause():
+
+    data = request.get_json()
+
+    original_clause = data.get("original_clause", "")
+
+    if not original_clause:
+        return jsonify({
+            "error": "Original clause is required."
+        }), 400
+
+    rewritten_clause = rewrite_clause(original_clause)
+
+    return jsonify({
+        "rewritten_clause": rewritten_clause
+    })
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

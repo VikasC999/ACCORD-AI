@@ -7,6 +7,12 @@ function UploadBox() {
     const [fileName, setFileName] = useState("");
     const [loading, setLoading] = useState(false);
     const [analysis, setAnalysis] = useState(null);
+    const [contractText, setContractText] = useState("");
+    const [question, setQuestion] = useState("");
+    const [answer, setAnswer] = useState("");
+    const [rewrittenClauses, setRewrittenClauses] = useState({});
+    const [appliedClauses, setAppliedClauses] = useState({});
+    const [loadingClause, setLoadingClause] = useState(null);
 
     const handleButtonClick = () => {
         fileInputRef.current.click();
@@ -31,6 +37,7 @@ function UploadBox() {
             });
 
             const data = await response.json();
+            setContractText(data.contract_text);
 
             setAnalysis(data.summary);
         } catch (error) {
@@ -39,6 +46,83 @@ function UploadBox() {
         } finally {
             setLoading(false);
         }
+    };
+    const handleAskQuestion = async () => {
+
+        if (!question.trim()) {
+            alert("Please enter a question.");
+            return;
+        }
+
+        try {
+
+            const response = await fetch(`${API_BASE_URL}/chat`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    contract_text: contractText,
+                    question: question,
+                }),
+            });
+
+            const data = await response.json();
+
+            setAnswer(data.answer);
+
+        } catch (error) {
+            console.error(error);
+            alert("Failed to get AI response.");
+        }
+    };
+    const handleRewriteClause = async (index, originalClause) => {
+
+        try {
+
+            setLoadingClause(index);
+
+            const response = await fetch(`${API_BASE_URL}/rewrite-clause`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    original_clause: originalClause,
+                }),
+            });
+
+            const data = await response.json();
+
+            setRewrittenClauses((prev) => ({
+                ...prev,
+                [index]: data.rewritten_clause,
+            }));
+
+        } catch (error) {
+            console.error(error);
+            alert("Failed to rewrite clause.");
+        } finally {
+            setLoadingClause(null);
+        }
+    };
+    const handleApplyClause = (index) => {
+
+        setAppliedClauses((prev) => ({
+            ...prev,
+            [index]: true,
+        }));
+
+    };
+
+    const handleRejectClause = (index) => {
+
+        setRewrittenClauses((prev) => {
+            const updated = { ...prev };
+            delete updated[index];
+            return updated;
+        });
+
     };
 
     return (
@@ -160,10 +244,10 @@ function UploadBox() {
 
                                     <span
                                         className={`font-semibold px-3 py-1 rounded-full text-sm ${analysis.risk_level === "High"
-                                                ? "bg-red-100 text-red-700"
-                                                : analysis.risk_level === "Medium"
-                                                    ? "bg-yellow-100 text-yellow-700"
-                                                    : "bg-green-100 text-green-700"
+                                            ? "bg-red-100 text-red-700"
+                                            : analysis.risk_level === "Medium"
+                                                ? "bg-yellow-100 text-yellow-700"
+                                                : "bg-green-100 text-green-700"
                                             }`}
                                     >
                                         {analysis.risk_level}
@@ -256,6 +340,61 @@ function UploadBox() {
                                     <p className="text-green-700 font-medium">
                                         {risk.suggestion}
                                     </p>
+                                    <div className="mt-4">
+                                        <button
+                                            onClick={() => handleRewriteClause(index, risk.original_text)}
+                                            disabled={loadingClause === index}
+                                            className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg"
+                                        >
+                                            {loadingClause === index ? "Rewriting..." : "✨ Rewrite Clause"}
+                                        </button>
+                                    </div>
+                                    {rewrittenClauses[index] && (
+                                        <div className="mt-5 border rounded-lg bg-green-50 p-4">
+
+                                            <h4 className="font-bold text-green-700">
+                                                ✨ AI Rewritten Clause
+                                            </h4>
+
+                                            <p className="mt-2 whitespace-pre-wrap">
+                                                {rewrittenClauses[index]}
+                                            </p>
+
+                                            <div className="flex gap-3 mt-4">
+
+                                                <button
+                                                    onClick={() => navigator.clipboard.writeText(rewrittenClauses[index])}
+                                                    className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg"
+                                                >
+                                                    📋 Copy
+                                                </button>
+
+                                                {!appliedClauses[index] ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleApplyClause(index)}
+                                                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+                                                        >
+                                                            ✅ Apply
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => handleRejectClause(index)}
+                                                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                                                        >
+                                                            ❌ Reject
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <span className="bg-green-100 text-green-700 px-4 py-2 rounded-lg font-semibold">
+                                                        ✅ Applied
+                                                    </span>
+                                                )}
+
+                                            </div>
+
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         )}
@@ -281,6 +420,43 @@ function UploadBox() {
                                     </li>
                                 ))}
                             </ul>
+                        )}
+                    </div>
+                    {/* AI Chat */}
+                    <div className="bg-white rounded-xl shadow p-5 border">
+                        <h3 className="font-bold text-lg">
+                            💬 Chat with Your Contract
+                        </h3>
+
+                        <p className="text-gray-500 mt-2">
+                            Ask any question about the uploaded contract.
+                        </p>
+
+                        <input
+                            type="text"
+                            placeholder="Example: Can either party terminate immediately?"
+                            value={question}
+                            onChange={(e) => setQuestion(e.target.value)}
+                            className="w-full mt-4 border rounded-lg p-3"
+                        />
+
+                        <button
+                            onClick={handleAskQuestion}
+                            className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg"
+                        >
+                            Ask AI
+                        </button>
+
+                        {answer && (
+                            <div className="mt-5 bg-gray-100 rounded-lg p-4">
+                                <h4 className="font-semibold mb-2">
+                                    🤖 AI Answer
+                                </h4>
+
+                                <p className="whitespace-pre-wrap">
+                                    {answer}
+                                </p>
+                            </div>
                         )}
                     </div>
 

@@ -186,3 +186,68 @@ Contract:
         "summary": "Failed to parse AI response.",
         "risky_clauses": []
     }
+def ask_contract_question(contract_text, question):
+
+    prompt = f"""
+You are AccordAI, an AI Contract Assistant.
+
+Answer the user's question ONLY using the contract provided below.
+
+Rules:
+- Do not make up information.
+- If the answer is not present in the contract, say:
+  "This information is not mentioned in the contract."
+- Keep answers concise (2-5 sentences).
+- Do not mention that you are an AI language model.
+
+Contract:
+{contract_text}
+
+Question:
+{question}
+"""
+
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        temperature=0,
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
+
+    return completion.choices[0].message.content.strip()
+def rewrite_clause(original_clause):
+
+    prompt = f"""
+You are an experienced contract lawyer.
+
+Rewrite the following contract clause to make it legally stronger,
+clearer, and fairer while preserving its original intent.
+
+Rules:
+- Return ONLY the rewritten clause.
+- Do NOT explain your reasoning.
+- Do NOT use markdown.
+- Keep the same legal meaning but reduce risk.
+- Write in professional legal language.
+
+Original Clause:
+
+{original_clause}
+"""
+
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        temperature=0,
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
+
+    return completion.choices[0].message.content.strip()
