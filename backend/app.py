@@ -13,6 +13,8 @@ import os
 from utils.docx_generator import create_docx
 load_dotenv()
 from models import User, Contract
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
 from flask_bcrypt import Bcrypt
 from datetime import timedelta
 from flask_jwt_extended import (
@@ -29,7 +31,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
 bcrypt = Bcrypt(app)
-app.config["JWT_SECRET_KEY"] = "accordai-secret-key"
+app.config["JWT_SECRET_KEY"] = "accordai-secret-key-2026-super-secure-random-string"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=12)
 
 
@@ -50,7 +52,9 @@ def health():
 
 
 @app.route("/upload", methods=["POST"])
+@jwt_required()
 def upload_pdf():
+    user_id = int(get_jwt_identity())
 
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
@@ -73,6 +77,15 @@ def upload_pdf():
     doc.close()
 
     summary = ask_ai(text)
+    new_contract = Contract(
+    user_id=user_id,
+    contract_type=summary.get("contract_type", "Unknown"),
+    mode="Analyzed",
+    title=file.filename,
+    content=text,
+    )
+    db.session.add(new_contract)
+    db.session.commit()
 
     return jsonify({
         "filename": file.filename,
@@ -125,6 +138,30 @@ def get_my_contracts():
         })
 
     return jsonify(contract_list)
+
+
+@app.route("/contract/<int:contract_id>", methods=["DELETE"])
+@jwt_required()
+def delete_contract(contract_id):
+
+    user_id = int(get_jwt_identity())
+
+    contract = Contract.query.filter_by(
+        id=contract_id,
+        user_id=user_id
+    ).first()
+
+    if not contract:
+        return jsonify({
+            "message": "Contract not found"
+        }), 404
+
+    db.session.delete(contract)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Contract deleted successfully"
+    }), 200
 
 @app.route("/contract/<int:contract_id>", methods=["GET"])
 @jwt_required()
@@ -180,6 +217,43 @@ def download_docx(contract_id):
         as_attachment=True,
         download_name=f"{contract.title}.docx"
     )
+
+@app.route("/download-pdf/<int:contract_id>", methods=["GET"])
+@jwt_required()
+def download_pdf(contract_id):
+
+    user_id = int(get_jwt_identity())
+
+    contract = Contract.query.filter_by(
+        id=contract_id,
+        user_id=user_id
+    ).first()
+
+    if not contract:
+        return jsonify({
+            "message": "Contract not found"
+        }), 404
+
+    output_path = f"contract_{contract.id}.pdf"
+
+    styles = getSampleStyleSheet()
+    doc = SimpleDocTemplate(output_path)
+
+    story = []
+
+    story.append(Paragraph(f"<b>{contract.title}</b>", styles["Heading1"]))
+
+    for line in contract.content.split("\n"):
+        story.append(Paragraph(line.replace("&", "&amp;"), styles["BodyText"]))
+
+    doc.build(story)
+
+    return send_file(
+        output_path,
+        as_attachment=True,
+        download_name=f"{contract.title}.pdf"
+    )
+
 @app.route("/download-enhanced-docx", methods=["POST"])
 @jwt_required()
 def download_enhanced_docx():
@@ -276,7 +350,10 @@ def test_ai():
     return jsonify({
         "response": response
     })
+
+
 @app.route("/chat", methods=["POST"])
+@jwt_required()
 def chat_with_contract():
 
     data = request.get_json()
@@ -295,6 +372,7 @@ def chat_with_contract():
         "answer": answer
     })
 @app.route("/rewrite-clause", methods=["POST"])
+@jwt_required()
 def rewrite_contract_clause():
 
     data = request.get_json()

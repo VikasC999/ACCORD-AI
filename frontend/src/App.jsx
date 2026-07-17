@@ -7,6 +7,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import ContractViewer from "./pages/ContractViewer";
 import ReviewContract from "./pages/ReviewContract";
+import ContractDetails from "./pages/ContractDetails";
 
 function App() {
   return (
@@ -54,6 +55,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/contract/:id" element={<ContractDetails />} />
 
       </Routes>
     </BrowserRouter>

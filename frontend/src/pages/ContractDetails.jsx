@@ -3,14 +3,71 @@ import { useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 
 function ContractViewer() {
-
     const { id } = useParams();
 
     const [contract, setContract] = useState(null);
-    const downloadDocx = async () => {
 
+    useEffect(() => {
+        const fetchContract = async () => {
+            try {
+                const token = localStorage.getItem("token");
+
+                const response = await fetch(
+                    `http://127.0.0.1:5000/contract/${id}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+
+                const data = await response.json();
+                setContract(data);
+            } catch (error) {
+                console.error(error);
+            }
+        };
+
+        fetchContract();
+    }, [id]);
+
+    const downloadPDF = async () => {
         try {
+            const token = localStorage.getItem("token");
 
+            const response = await fetch(
+                `http://127.0.0.1:5000/download-pdf/${id}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                alert("Failed to download PDF.");
+                return;
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${contract.title}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error(error);
+            alert("Download failed.");
+        }
+    };
+
+    const downloadDocx = async () => {
+        try {
             const token = localStorage.getItem("token");
 
             const response = await fetch(
@@ -23,79 +80,45 @@ function ContractViewer() {
             );
 
             if (!response.ok) {
-                alert("Failed to download contract.");
+                alert("Failed to download DOCX.");
                 return;
             }
 
             const blob = await response.blob();
-
             const url = window.URL.createObjectURL(blob);
 
             const a = document.createElement("a");
-
             a.href = url;
-
             a.download = `${contract.title}.docx`;
-
             document.body.appendChild(a);
-
             a.click();
-
             a.remove();
 
             window.URL.revokeObjectURL(url);
-
         } catch (error) {
-
             console.error(error);
-
             alert("Download failed.");
-
         }
     };
 
-    useEffect(() => {
-
-        const fetchContract = async () => {
-
-            const token = localStorage.getItem("token");
-
-            const response = await fetch(
-                `http://127.0.0.1:5000/contract/${id}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
-
-            const data = await response.json();
-
-            setContract(data);
-        };
-
-        fetchContract();
-
-    }, [id]);
-
-    if (!contract) {
-        return <p className="p-10">Loading...</p>;
-    }
     const handleCopy = () => {
         navigator.clipboard.writeText(contract.content);
-        alert("Contract copied!");
+        alert("Contract copied to clipboard!");
     };
 
     const handlePrint = () => {
         window.print();
     };
 
+    if (!contract) {
+        return <p className="p-10">Loading...</p>;
+    }
+
     return (
         <>
             <Navbar />
 
             <div className="min-h-screen bg-gray-100 p-8">
-
                 <div className="bg-white rounded-xl shadow-lg p-8">
 
                     <h1 className="text-3xl font-bold text-blue-700">
@@ -107,7 +130,8 @@ function ContractViewer() {
                     </p>
 
                     <hr className="my-6" />
-                    <div className="flex flex-wrap gap-3 mt-6">
+
+                    <div className="flex flex-wrap gap-3">
 
                         <button
                             onClick={downloadPDF}
@@ -144,7 +168,6 @@ function ContractViewer() {
                     </div>
 
                 </div>
-
             </div>
         </>
     );

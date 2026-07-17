@@ -33,8 +33,13 @@ function UploadBox() {
         try {
             setLoading(true);
 
+            const token = localStorage.getItem("token");
+
             const response = await fetch(`${API_BASE_URL}/upload`, {
                 method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
                 body: formData,
             });
 
@@ -59,10 +64,13 @@ function UploadBox() {
 
         try {
 
+            const token = localStorage.getItem("token");
+
             const response = await fetch(`${API_BASE_URL}/chat`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     contract_text: contractText,
@@ -85,10 +93,13 @@ function UploadBox() {
 
             setLoadingClause(index);
 
+            const token = localStorage.getItem("token");
+
             const response = await fetch(`${API_BASE_URL}/rewrite-clause`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     original_clause: originalClause,
