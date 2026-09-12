@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 function UploadBox() {
     const fileInputRef = useRef(null);
+    const navigate = useNavigate();
 
     const [fileName, setFileName] = useState("");
     const [loading, setLoading] = useState(false);
@@ -44,13 +45,24 @@ function UploadBox() {
             });
 
             const data = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 422) {
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("user");
+                    navigate("/login");
+                    throw new Error("Your session has expired. Please log in again.");
+                }
+                throw new Error(data.error || data.message || data.msg || "Upload failed.");
+            }
+
             setContractText(data.contract_text);
             setEnhancedContract(data.contract_text);
 
             setAnalysis(data.summary);
         } catch (error) {
             console.error(error);
-            alert("Upload failed.");
+            alert(error.message || "Upload failed.");
         } finally {
             setLoading(false);
         }

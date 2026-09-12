@@ -129,12 +129,21 @@ function Generator() {
 
             const data = await response.json();
 
-            console.log(data);
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 422) {
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("user");
+                    alert("Your session has expired. Please log in again.");
+                    window.location.href = "/login";
+                    return;
+                }
+                throw new Error(data.error || data.message || data.msg || "Failed to generate contract.");
+            }
 
             setGeneratedContract(data.contract);
         } catch (error) {
             console.error(error);
-            alert("Error connecting to backend");
+            alert(error.message || "Error connecting to backend.");
         }
     };
     const downloadPDF = () => {
