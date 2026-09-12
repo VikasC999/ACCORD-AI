@@ -9,100 +9,91 @@ import {
     HeadingLevel,
     TextRun,
 } from "docx";
+import {
+    FiBriefcase,
+    FiUserCheck,
+    FiLock,
+    FiHome,
+    FiCode,
+    FiDownload,
+    FiFileText,
+    FiLoader,
+} from "react-icons/fi";
+
+const contractTypes = [
+    { value: "Service Agreement", label: "Service Agreement", icon: FiBriefcase },
+    { value: "Employment Agreement", label: "Employment Agreement", icon: FiUserCheck },
+    { value: "Non-Disclosure Agreement", label: "NDA", icon: FiLock },
+    { value: "Rental Agreement", label: "Rental Agreement", icon: FiHome },
+    { value: "Freelancer Agreement", label: "Freelancer Agreement", icon: FiCode },
+];
+
+const fieldConfig = {
+    "Service Agreement": [
+        { name: "clientName", label: "Client Name", placeholder: "e.g. Jane Doe" },
+        { name: "providerName", label: "Service Provider Name", placeholder: "e.g. Acme Services LLC" },
+        { name: "services", label: "Services Provided", placeholder: "e.g. Web design and development" },
+        { name: "startDate", label: "Start Date", type: "date" },
+        { name: "duration", label: "Contract Duration", placeholder: "e.g. 6 months" },
+        { name: "payment", label: "Payment Amount", placeholder: "e.g. $5,000" },
+    ],
+    "Employment Agreement": [
+        { name: "employeeName", label: "Employee Name", placeholder: "e.g. John Smith" },
+        { name: "companyName", label: "Company Name", placeholder: "e.g. Acme Corp" },
+        { name: "jobTitle", label: "Job Title", placeholder: "e.g. Software Engineer" },
+        { name: "joiningDate", label: "Joining Date", type: "date" },
+        { name: "salary", label: "Annual Salary", placeholder: "e.g. $80,000" },
+    ],
+    "Non-Disclosure Agreement": [
+        { name: "partyOne", label: "First Party", placeholder: "e.g. Company A" },
+        { name: "partyTwo", label: "Second Party", placeholder: "e.g. Company B" },
+        { name: "purpose", label: "Purpose of NDA", placeholder: "e.g. Discussing a potential partnership" },
+        { name: "confidentialPeriod", label: "Confidentiality Period", placeholder: "e.g. 2 years" },
+    ],
+    "Rental Agreement": [
+        { name: "landlord", label: "Landlord Name", placeholder: "e.g. Robert Brown" },
+        { name: "tenant", label: "Tenant Name", placeholder: "e.g. Alice Green" },
+        { name: "propertyAddress", label: "Property Address", placeholder: "e.g. 123 Main St, Springfield" },
+        { name: "monthlyRent", label: "Monthly Rent", placeholder: "e.g. $1,200" },
+        { name: "leaseDuration", label: "Lease Duration", placeholder: "e.g. 12 months" },
+    ],
+    "Freelancer Agreement": [
+        { name: "clientName", label: "Client Name", placeholder: "e.g. Jane Doe" },
+        { name: "freelancerName", label: "Freelancer Name", placeholder: "e.g. Sam Carter" },
+        { name: "projectDescription", label: "Project Description", placeholder: "e.g. Logo design and branding" },
+        { name: "projectDuration", label: "Project Duration", placeholder: "e.g. 4 weeks" },
+        { name: "projectPayment", label: "Project Payment", placeholder: "e.g. $1,500" },
+    ],
+};
+
+const initialFormData = {
+    clientName: "", providerName: "", services: "", startDate: "", duration: "", payment: "",
+    employeeName: "", companyName: "", jobTitle: "", joiningDate: "", salary: "",
+    partyOne: "", partyTwo: "", purpose: "", confidentialPeriod: "",
+    landlord: "", tenant: "", propertyAddress: "", monthlyRent: "", leaseDuration: "",
+    freelancerName: "", projectDescription: "", projectDuration: "", projectPayment: "",
+};
 
 function Generator() {
     const [contractType, setContractType] = useState("");
+    const [formData, setFormData] = useState(initialFormData);
+    const [generatedContract, setGeneratedContract] = useState("");
+    const [generating, setGenerating] = useState(false);
 
-    const [formData, setFormData] = useState({
-        // Service Agreement
-        clientName: "",
-        providerName: "",
-        services: "",
-        startDate: "",
-        duration: "",
-        payment: "",
-
-        // Employment Agreement
-        employeeName: "",
-        companyName: "",
-        jobTitle: "",
-        joiningDate: "",
-        salary: "",
-
-        // NDA
-        partyOne: "",
-        partyTwo: "",
-        purpose: "",
-        confidentialPeriod: "",
-
-        // Rental Agreement
-        landlord: "",
-        tenant: "",
-        propertyAddress: "",
-        monthlyRent: "",
-        leaseDuration: "",
-
-        // Freelancer Agreement
-        freelancerName: "",
-        projectDescription: "",
-        projectDuration: "",
-        projectPayment: "",
-    });
     const handleChange = (e) => {
         setFormData({
             ...formData,
             [e.target.name]: e.target.value,
         });
     };
-    const [generatedContract, setGeneratedContract] = useState("");
-    const requiredFields = {
-        "Service Agreement": [
-            "clientName",
-            "providerName",
-            "services",
-            "startDate",
-            "duration",
-            "payment",
-        ],
 
-        "Employment Agreement": [
-            "employeeName",
-            "companyName",
-            "jobTitle",
-            "joiningDate",
-            "salary",
-        ],
-
-        "Non-Disclosure Agreement": [
-            "partyOne",
-            "partyTwo",
-            "purpose",
-            "confidentialPeriod",
-        ],
-
-        "Rental Agreement": [
-            "landlord",
-            "tenant",
-            "propertyAddress",
-            "monthlyRent",
-            "leaseDuration",
-        ],
-
-        "Freelancer Agreement": [
-            "clientName",
-            "freelancerName",
-            "projectDescription",
-            "projectDuration",
-            "projectPayment",
-        ],
-    };
     const handleGenerate = async () => {
         if (!contractType) {
             alert("Please select a contract type.");
             return;
         }
 
-        const fields = requiredFields[contractType];
+        const fields = fieldConfig[contractType].map((f) => f.name);
 
         for (const field of fields) {
             if (!formData[field]?.trim()) {
@@ -112,6 +103,8 @@ function Generator() {
         }
 
         try {
+            setGenerating(true);
+
             const token = localStorage.getItem("token");
 
             const response = await fetch("http://127.0.0.1:5000/generate", {
@@ -144,6 +137,8 @@ function Generator() {
         } catch (error) {
             console.error(error);
             alert(error.message || "Error connecting to backend.");
+        } finally {
+            setGenerating(false);
         }
     };
     const downloadPDF = () => {
@@ -217,326 +212,147 @@ function Generator() {
         saveAs(blob, "Generated_Contract.docx");
     };
 
+    const activeType = contractTypes.find((t) => t.value === contractType);
 
     return (
         <>
             <Navbar />
 
-            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-                <div className="bg-white shadow-lg rounded-xl p-10 w-[700px]">
-                    <h1 className="text-4xl font-bold text-blue-700 text-center">
-                        Contract Generator
-                    </h1>
+            <div className="min-h-screen bg-slate-50 py-8 sm:py-12">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
-                    <p className="mt-4 text-gray-600 text-center">
-                        Generate professional legal contracts using AI.
-                    </p>
-
-                    <div className="mt-8">
-                        <label className="block text-gray-700 font-semibold mb-2">
-                            Select Contract Type
-                        </label>
-
-                        <select
-                            value={contractType}
-                            onChange={(e) => {
-                                setContractType(e.target.value);
-                                setGeneratedContract("");
-                            }}
-                            className="w-full border rounded-lg p-3"
-                        >
-                            <option value="">-- Select --</option>
-                            <option value="Service Agreement">
-                                Service Agreement
-                            </option>
-                            <option value="Employment Agreement">
-                                Employment Agreement
-                            </option>
-                            <option value="Non-Disclosure Agreement">
-                                Non-Disclosure Agreement (NDA)
-                            </option>
-                            <option value="Rental Agreement">
-                                Rental Agreement
-                            </option>
-                            <option value="Freelancer Agreement">
-                                Freelancer Agreement
-                            </option>
-                        </select>
+                    <div className="mb-8 text-center">
+                        <h1 className="text-3xl sm:text-4xl font-bold text-slate-900">
+                            Contract Generator
+                        </h1>
+                        <p className="mt-3 text-slate-500 max-w-xl mx-auto">
+                            Generate professional legal contracts using AI in under a minute.
+                        </p>
                     </div>
-                    {contractType === "Service Agreement" && (
-                        <div className="mt-8 space-y-4">
-                            <input
-                                type="text"
-                                name="clientName"
-                                placeholder="Client Name"
-                                value={formData.clientName}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
 
-                            <input
-                                type="text"
-                                name="providerName"
-                                placeholder="Service Provider Name"
-                                value={formData.providerName}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
+                    <div className="grid lg:grid-cols-3 gap-6 items-start">
 
-                            <input
-                                type="text"
-                                name="services"
-                                placeholder="Services Provided"
-                                value={formData.services}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
+                        <div className="lg:col-span-2 bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-8">
 
-                            <input
-                                type="date"
-                                name="startDate"
-                                value={formData.startDate}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
+                            <label className="block text-sm font-semibold text-slate-700 mb-3">
+                                Select Contract Type
+                            </label>
 
-                            <input
-                                type="text"
-                                name="duration"
-                                placeholder="Contract Duration"
-                                value={formData.duration}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="payment"
-                                placeholder="Payment Amount"
-                                value={formData.payment}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-                        </div>
-                    )}
-                    {contractType === "Employment Agreement" && (
-                        <div className="mt-8 space-y-4">
-                            <input
-                                type="text"
-                                name="employeeName"
-                                placeholder="Employee Name"
-                                value={formData.employeeName || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="companyName"
-                                placeholder="Company Name"
-                                value={formData.companyName || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="jobTitle"
-                                placeholder="Job Title"
-                                value={formData.jobTitle || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="date"
-                                name="joiningDate"
-                                value={formData.joiningDate || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="salary"
-                                placeholder="Annual Salary"
-                                value={formData.salary || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-                        </div>
-                    )}
-                    {contractType === "Non-Disclosure Agreement" && (
-                        <div className="mt-8 space-y-4">
-                            <input
-                                type="text"
-                                name="partyOne"
-                                placeholder="First Party"
-                                value={formData.partyOne || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="partyTwo"
-                                placeholder="Second Party"
-                                value={formData.partyTwo || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="purpose"
-                                placeholder="Purpose of NDA"
-                                value={formData.purpose || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="confidentialPeriod"
-                                placeholder="Confidentiality Period"
-                                value={formData.confidentialPeriod || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-                        </div>
-                    )}
-                    {contractType === "Rental Agreement" && (
-                        <div className="mt-8 space-y-4">
-                            <input
-                                type="text"
-                                name="landlord"
-                                placeholder="Landlord Name"
-                                value={formData.landlord || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="tenant"
-                                placeholder="Tenant Name"
-                                value={formData.tenant || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="propertyAddress"
-                                placeholder="Property Address"
-                                value={formData.propertyAddress || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="monthlyRent"
-                                placeholder="Monthly Rent"
-                                value={formData.monthlyRent || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="leaseDuration"
-                                placeholder="Lease Duration"
-                                value={formData.leaseDuration || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-                        </div>
-                    )}
-                    {contractType === "Freelancer Agreement" && (
-                        <div className="mt-8 space-y-4">
-                            <input
-                                type="text"
-                                name="clientName"
-                                placeholder="Client Name"
-                                value={formData.clientName || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="freelancerName"
-                                placeholder="Freelancer Name"
-                                value={formData.freelancerName || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="projectDescription"
-                                placeholder="Project Description"
-                                value={formData.projectDescription || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="projectDuration"
-                                placeholder="Project Duration"
-                                value={formData.projectDuration || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-
-                            <input
-                                type="text"
-                                name="projectPayment"
-                                placeholder="Project Payment"
-                                value={formData.projectPayment || ""}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-                        </div>
-                    )}
-
-
-                    {contractType && (
-                        <div className="mt-6">
-                            <button
-                                onClick={handleGenerate}
-                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition"
-                            >
-                                Generate {contractType}
-                            </button>
-                        </div>
-                    )}
-                    {generatedContract && (
-                        <div className="mt-8 bg-gray-100 p-6 rounded-lg">
-                            <h2 className="text-2xl font-bold text-blue-700 mb-4">
-                                Generated Contract
-                            </h2>
-
-                            <div className="flex justify-end gap-4 mb-4">
-                                <button
-                                    onClick={downloadPDF}
-                                    className="bg-green-600 hover:bg-green-700 text-white font-semibold px-5 py-2 rounded-lg transition"
-                                >
-                                    Download PDF
-                                </button>
-
-                                <button
-                                    onClick={downloadDOCX}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg transition"
-                                >
-                                    Download DOCX
-                                </button>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2">
+                                {contractTypes.map(({ value, label, icon: Icon }) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => {
+                                            setContractType(value);
+                                            setGeneratedContract("");
+                                        }}
+                                        className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-4 text-center transition ${contractType === value
+                                            ? "border-blue-600 bg-blue-50 text-blue-700"
+                                            : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                                            }`}
+                                    >
+                                        <Icon size={20} />
+                                        <span className="text-xs font-medium leading-tight">
+                                            {label}
+                                        </span>
+                                    </button>
+                                ))}
                             </div>
 
-                            <div className="bg-white border rounded-lg shadow-inner p-8 max-h-[700px] overflow-y-auto">
-                                <div className="whitespace-pre-wrap leading-8 text-gray-800 text-[15px]">
+                            {contractType && (
+                                <div className="mt-8 grid sm:grid-cols-2 gap-4">
+                                    {fieldConfig[contractType].map((field) => (
+                                        <div
+                                            key={field.name}
+                                            className={field.type === "date" ? "" : "sm:col-span-2"}
+                                        >
+                                            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                                                {field.label}
+                                            </label>
+                                            <input
+                                                type={field.type || "text"}
+                                                name={field.name}
+                                                placeholder={field.placeholder}
+                                                value={formData[field.name]}
+                                                onChange={handleChange}
+                                                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {contractType && (
+                                <div className="mt-8">
+                                    <button
+                                        onClick={handleGenerate}
+                                        disabled={generating}
+                                        className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-xl transition"
+                                    >
+                                        {generating ? (
+                                            <>
+                                                <FiLoader className="animate-spin" size={16} />
+                                                Generating...
+                                            </>
+                                        ) : (
+                                            `Generate ${contractType}`
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-slate-900 text-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:sticky lg:top-24">
+                            <span className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/10">
+                                {activeType ? <activeType.icon size={20} /> : <FiFileText size={20} />}
+                            </span>
+
+                            <h3 className="mt-4 text-lg font-semibold">
+                                {activeType ? activeType.label : "Pick a contract type"}
+                            </h3>
+
+                            <p className="mt-2 text-sm text-slate-300 leading-6">
+                                {activeType
+                                    ? "Fill in the details on the left and AccordAI will draft a complete, ready-to-edit contract for you."
+                                    : "Choose one of the templates to see the fields you'll need to fill in."}
+                            </p>
+
+                            <div className="mt-6 pt-6 border-t border-white/10 text-xs text-slate-400 leading-5">
+                                Generated contracts are a starting point — always have important agreements reviewed before signing.
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {generatedContract && (
+                        <div className="mt-8 bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-8">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                                <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+                                    Generated Contract
+                                </h2>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={downloadPDF}
+                                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 sm:px-5 py-2 rounded-xl text-sm transition"
+                                    >
+                                        <FiDownload size={15} />
+                                        PDF
+                                    </button>
+
+                                    <button
+                                        onClick={downloadDOCX}
+                                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 sm:px-5 py-2 rounded-xl text-sm transition"
+                                    >
+                                        <FiDownload size={15} />
+                                        DOCX
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 sm:p-8 max-h-[700px] overflow-y-auto scrollbar-thin">
+                                <div className="whitespace-pre-wrap leading-7 sm:leading-8 text-slate-800 text-[15px]">
                                     {generatedContract}
                                 </div>
                             </div>
