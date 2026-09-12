@@ -6,11 +6,12 @@ from services.ai_service import (
 from services.contract_generator import generate_contract
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-import fitz  # PyMuPDF
 from database import db
 from dotenv import load_dotenv
 import os
+from werkzeug.utils import secure_filename
 from utils.docx_generator import create_docx
+from utils.pdf_reader import extract_text, SUPPORTED_EXTENSIONS
 load_dotenv()
 from models import User, Contract
 from reportlab.platypus import SimpleDocTemplate, Paragraph
@@ -64,17 +65,26 @@ def upload_pdf():
     if file.filename == "":
         return jsonify({"error": "No file selected"}), 400
 
-    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+    ext = os.path.splitext(file.filename)[1].lower()
+
+    if ext not in SUPPORTED_EXTENSIONS:
+        return jsonify({
+            "error": f"Unsupported file type '{ext}'. Please upload a PDF, DOCX, PNG, or JPG file."
+        }), 400
+
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
     file.save(filepath)
 
-    doc = fitz.open(filepath)
+    try:
+        text = extract_text(filepath, filename)
+    except Exception as e:
+        return jsonify({"error": f"Failed to read file: {str(e)}"}), 400
 
-    text = ""
-
-    for page in doc:
-        text += page.get_text()
-
-    doc.close()
+    if not text.strip():
+        return jsonify({
+            "error": "Could not extract any readable text from this file."
+        }), 400
 
     summary = ask_ai(text)
     new_contract = Contract(

@@ -165,12 +165,12 @@ function UploadBox() {
             </h2>
 
             <p className="text-gray-500 mt-2">
-                Drag & drop your PDF here or click below.
+                Supports PDF, DOCX, and scanned images (PNG/JPG).
             </p>
 
             <input
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.docx,.png,.jpg,.jpeg"
                 ref={fileInputRef}
                 onChange={handleFileChange}
                 className="hidden"
@@ -180,7 +180,7 @@ function UploadBox() {
                 onClick={handleButtonClick}
                 className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
             >
-                Choose PDF
+                Choose File
             </button>
 
             {fileName && (
